@@ -214,6 +214,8 @@ private:
     /// True for a draw of the game's motion blur while the motion blur setting is off.
     bool MotionBlurSkipped(const GraphicsPipeline& pipeline);
     /// Everything of a direct draw after the pipeline selection (GPU thread or stage B).
+    /// spartanport: submits every SPARTAN_SUBMIT_EVERY draws from the recording thread.
+    void SubmitEarly();
     void DrawRecord(const GraphicsPipeline* pipeline, const PreparedDraw* used_prepared,
                     bool is_indexed, u32 index_offset);
     static bool DrawPipeWanted();

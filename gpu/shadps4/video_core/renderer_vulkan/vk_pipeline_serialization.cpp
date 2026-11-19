@@ -46,7 +46,7 @@
 
 namespace Serialization {
 /* You should increment versions below once corresponding serialization scheme is changed. */
-static constexpr u32 ShaderBinaryVersion = 7u; // spartanport: interpolated integer fix (Pascal)
+static constexpr u32 ShaderBinaryVersion = 8u; // spartanport: NaN-safe min/max, PKRTZ/export clamps, unordered compares, s_wqm
 static constexpr u32 ShaderMetaVersion = 8u; // spartanport: Shader::ReplayInputs at the end
 static constexpr u32 PipelineKeyVersion = 5u; // spartanport: Info layout (ImageResource::needs_native)
 } // namespace Serialization

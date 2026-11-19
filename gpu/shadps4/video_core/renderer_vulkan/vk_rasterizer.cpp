@@ -1661,6 +1661,46 @@ void Rasterizer::DiagPassBoundary(bool force) {
     diag_addresses = force ? std::array<VAddr, 8>{} : addresses;
 }
 
+/// spartanport: SPARTAN_SUBMIT_EVERY=<draws> (default 400; 0: off). The port submits to the GPU
+/// only where the game's command buffers end (once or twice a frame), so the GPU starts a frame
+/// only after all of it was decoded and recorded, and a game that waits for each frame to finish
+/// gets no overlap of recording and GPU work. Here the recording thread submits what it has
+/// every N draws, before it records anything of the next draw. Measured in the Killzone Shadow
+/// Fall port on an RX 7900 XT: +15% FPS, +26% minimum FPS.
+void Rasterizer::SubmitEarly() {
+    static const u32 every = [] {
+        const char* env = std::getenv("SPARTAN_SUBMIT_EVERY");
+        const u32 n = env && *env ? static_cast<u32>(std::strtoul(env, nullptr, 10)) : 400;
+        if (n) {
+            std::printf("GPU: the draw recording thread submits every %u draws "
+                        "(SPARTAN_SUBMIT_EVERY)\n",
+                        n);
+            std::fflush(stdout);
+        }
+        return n;
+    }();
+    // Not with parallel blocks (toggle 1 << 62): a submit must not split an open block.
+    if (!every || FrameCapture::Active() ||
+        SpartanToggle::Disabled(SpartanToggle::ParallelBlocks)) {
+        return;
+    }
+    // Stage B only, so one thread owns these.
+    static u64 tick_seen = 0;
+    static u32 draws = 0;
+    const u64 tick = scheduler.CurrentTick();
+    if (tick != tick_seen) {
+        // Submitted since (the game's own submissions): count from there.
+        tick_seen = tick;
+        draws = 0;
+    }
+    if (++draws < every) {
+        return;
+    }
+    scheduler.Flush();
+    tick_seen = scheduler.CurrentTick();
+    draws = 0;
+}
+
 void Rasterizer::DrawRecord(const GraphicsPipeline* pipeline, const PreparedDraw* used_prepared,
                             bool is_indexed, u32 index_offset) {
     std::unique_lock<SpartanSpin::RecursiveLock> resolve_guard{resolve_lock, std::defer_lock};
@@ -1672,6 +1712,7 @@ void Rasterizer::DrawRecord(const GraphicsPipeline* pipeline, const PreparedDraw
         FrameCapture::Poll();
         scheduler.PopPendingOperations();
         StageLap(SpartanStageProfile::Pending);
+        SubmitEarly();
     }
     upscaler->RunPending();
     DiagPassBoundary(false);

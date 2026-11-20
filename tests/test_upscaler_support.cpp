@@ -71,7 +71,10 @@ int main() {
                 ConfigureUpscalerSupport(fsr4, fsr411);
                 const bool unsupported = (requested == UpscalerFsr4 && !fsr4) ||
                     (requested == UpscalerFsr411 && !fsr411);
-                assert(s.upscaler == (unsupported ? UpscalerFsr3 : requested));
+                // FSR 4.1 (AMD driver) falls back to the open FSR 4 model when the GPU runs it.
+                const int fallback =
+                    requested == UpscalerFsr411 && fsr4 ? UpscalerFsr4 : UpscalerFsr3;
+                assert(s.upscaler == (unsupported ? fallback : requested));
                 assert(s.fsr4_supported == fsr4);
                 assert(s.fsr411_supported == fsr411);
                 assert(bool(s.fsr4_problem.load()) == unsupported);
@@ -79,7 +82,7 @@ int main() {
                 // Startup patch settings still describe the already applied guest patches.
                 assert(s.startup_upscaler == requested);
                 ConfigureUpscalerSupport(fsr4, fsr411);
-                assert(s.upscaler == (unsupported ? UpscalerFsr3 : requested));
+                assert(s.upscaler == (unsupported ? fallback : requested));
             }
         }
     }

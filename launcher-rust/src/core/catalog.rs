@@ -106,6 +106,9 @@ const fn app_unwritten(key: &'static str, kind: Kind, default: Default) -> Setti
     }
 }
 
+/// The upscaler a new install starts with.
+pub const DEFAULT_UPSCALER: &str = if cfg!(windows) { "fsr411" } else { "fsr4" };
+
 const fn ini(
     key: &'static str,
     kind: Kind,
@@ -397,7 +400,9 @@ pub static SETTINGS: &[Setting] = &[
     ),
     ini("motion_blur", Flag, Bool(true), true, 29),
     ini("depth_of_field", Flag, Bool(true), true, 30),
-    ini("upscaler", Pick(UPSCALERS), Text("off"), true, 0),
+    // FSR 4 by default: AMD's FSR 4.1 from the driver on Windows (the game falls back to the open
+    // FSR 4 model, then FSR 3.1, when the GPU or driver lacks it), the open FSR 4 model elsewhere.
+    ini("upscaler", Pick(UPSCALERS), Text(DEFAULT_UPSCALER), true, 0),
     ini("preset", Pick(PRESETS), Text("1"), true, 1),
     ini(
         "frame_generation",

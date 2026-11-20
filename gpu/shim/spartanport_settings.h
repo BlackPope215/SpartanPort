@@ -85,7 +85,13 @@ inline float TextureLodBias(int quality) {
 }
 
 struct Values {
-    std::atomic<int> upscaler{UpscalerOff};
+    /// spartanport: FSR 4 by default (AMD's FSR 4.1 from the driver on Windows; ConfigureUpscalerSupport
+    /// falls back to the open FSR 4 model, then FSR 3.1). upscaler=off in spartanport.ini turns it off.
+#ifdef _WIN32
+    std::atomic<int> upscaler{UpscalerFsr411};
+#else
+    std::atomic<int> upscaler{UpscalerFsr4};
+#endif
     std::atomic<int> preset{NativeAA};
     /// Frame generation (frame_generation_policy.h Mode): off, fsr in spartanport.ini.
     std::atomic<int> frame_generation{0};

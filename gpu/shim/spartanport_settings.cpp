@@ -495,12 +495,16 @@ void ConfigureUpscalerSupport(bool fsr4, bool fsr411, const char* fsr411_problem
     if ((requested == UpscalerFsr4 && !v.fsr4_supported) ||
         (requested == UpscalerFsr411 && !v.fsr411_supported)) {
         static std::string problem;
-        problem = requested == UpscalerFsr411 && fsr411_problem ? fsr411_problem :
-            "GPU does not support the selected FSR 4 shaders; using FSR 3.1";
+        // spartanport: FSR 4.1 (AMD driver) unavailable falls back to the open FSR 4 model first.
+        const int fallback =
+            requested == UpscalerFsr411 && v.fsr4_supported ? UpscalerFsr4 : UpscalerFsr3;
+        problem = requested == UpscalerFsr411 && fsr411_problem ? fsr411_problem
+                  : fallback == UpscalerFsr4 ? "AMD FSR 4.1 is unavailable; using the open FSR 4 model"
+                                             : "GPU does not support the selected FSR 4 shaders; using FSR 3.1";
         v.fsr4_problem = problem.c_str();
-        std::printf("Upscaler: %s unavailable: %s; falling back to FSR 3.1 before the first frame\n",
-                    UpscalerName(requested), v.fsr4_problem.load());
-        v.upscaler = UpscalerFsr3;
+        std::printf("Upscaler: %s unavailable: %s; falling back to %s before the first frame\n",
+                    UpscalerName(requested), v.fsr4_problem.load(), UpscalerName(fallback));
+        v.upscaler = fallback;
     }
 }
 

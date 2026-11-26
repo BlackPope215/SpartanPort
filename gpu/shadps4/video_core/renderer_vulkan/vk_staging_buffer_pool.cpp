@@ -58,6 +58,18 @@ StagingBufferPool::StagingBufferPool(const Instance& instance_, Scheduler& sched
             std::memset(block.buffer->mapped_data.data(), 0, block.buffer->mapped_data.size());
         }
     }
+    // spartanport (from the Bloodborne Windows port, f1329ce): the VRAM blocks that detiling and
+    // copies stage through exist from the start, so the first area load does not wait for
+    // vkAllocateMemory on the recording thread. As many as the trim keeps
+    // (SPARTAN_STAGING_KEEP_VRAM_MB, 32 MiB by default), at most 4.
+    Ring& vram_ring = rings[u32(MemoryType::DeviceLocal)];
+    for (u64 i = 0; i < std::min<u64>(keep_vram_blocks, 4); ++i) {
+        vram_ring.blocks.emplace_back(Block{
+            .buffer = std::make_unique<VideoCore::StreamBuffer>(
+                instance, scheduler, MemoryType::DeviceLocal, BLOCK_SIZE),
+            .last_used_frame = frame,
+        });
+    }
 }
 
 StagingBufferPool::~StagingBufferPool() = default;

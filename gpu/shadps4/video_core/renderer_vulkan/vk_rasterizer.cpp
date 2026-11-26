@@ -4204,11 +4204,14 @@ u32 Rasterizer::ReadDataFromGds(u32 gds_offset) {
 }
 
 bool Rasterizer::InvalidateMemory(VAddr addr, u64 size, bool assume_locks) {
-    DrainDrawPipe();
+    // spartanport (from the Bloodborne Windows port, f1329ce): memory the GPU never mapped needs
+    // no drain of the draw pipe; the pipe does not change what is mapped (Map/UnmapMemory run on
+    // the game's threads, UnmapMemory drains itself).
     if (!IsMapped(addr, size)) {
         // Not GPU mapped memory, can skip invalidation logic entirely.
         return false;
     }
+    DrainDrawPipe();
     texture_cache.ResolveReadbacks(addr, size, assume_locks, VideoCore::ReadbackSource::CpuWrite);
     buffer_cache.InvalidateMemory(addr, size, assume_locks);
     texture_cache.InvalidateMemory(addr, size);
@@ -4216,7 +4219,7 @@ bool Rasterizer::InvalidateMemory(VAddr addr, u64 size, bool assume_locks) {
 }
 
 bool Rasterizer::OnWriteFault(VAddr addr, bool assume_locks) {
-    DrainDrawPipe();
+    // InvalidateMemory drains the draw pipe once it knows the page is the GPU's.
     if (!InvalidateMemory(addr, 8, assume_locks)) {
         return false;
     }
@@ -4225,11 +4228,12 @@ bool Rasterizer::OnWriteFault(VAddr addr, bool assume_locks) {
 }
 
 bool Rasterizer::ReadMemory(VAddr addr, u64 size, bool assume_locks) {
-    DrainDrawPipe();
+    // spartanport: as InvalidateMemory, no drain for memory the GPU never mapped.
     if (!IsMapped(addr, size)) {
         // Not GPU mapped memory, can skip invalidation logic entirely.
         return false;
     }
+    DrainDrawPipe();
     const bool image_readback =
         texture_cache.ResolveReadbacks(addr, size, assume_locks, VideoCore::ReadbackSource::CpuRead);
     if (!image_readback || buffer_cache.IsRegionGpuModified(addr, size)) {
